@@ -119,8 +119,9 @@ def crossover(population):
     
 
 def selection(population, n):
-    population = sorted(population, key = scores, reverse=True)
-    population = population[:n]
+    population.sort(key = scores, reverse=True)
+    while len(population) > n:
+        population.pop()
 
 def printChromosome(chromosome):
     print("Course:", course_bits(chromosome),
@@ -151,18 +152,16 @@ def genetic_algorithm():
         else:
             for _c in range(len(population)):
                 crossover(population)
-                population = sorted(population, key = scores, reverse=True)
-                population = population[:5]
-
+                selection(population, 5)
+                
+                selection(population[_c], len(cpg))
                 mutate(population[_c])
-                population[_c] = sorted(population[_c], key = scores, reverse=True)
-                population[_c] = population[_c][:len(cpg)]
 
 
         generation = generation + 1
         print("Gen:", generation)
 
-    # print("Population", population)
+    print("Population", population)
 
 def main():
     random.seed()
