@@ -10,7 +10,10 @@ from copy import deepcopy
 
 cpg = ["000000", "010001", "100100", "111010"] # course, professor, student group pair
 lts = ["00", "01"] # lecture theatres
-slots = ["00", "01", "10", "11"] # time slots
+slots = ["00", "01"] # time slots
+
+
+max_score = 200
 
 ########## Chromosome ##############
 # <Course, Prof, Group, Slot, LT>  #
@@ -27,20 +30,20 @@ total_bits = courses_bits + professors_bits + groups_bits + lts_bits + slots_bit
 
 
 # All these *_bits() function assume that the *_bits variables are correctly set
-def course_bits(c):
-    return c[0:courses_bits]
+def course_bits(chromosome):
+    return chromosome[0:courses_bits]
 
-def professor_bits(c):
-    return c[courses_bits: courses_bits + professors_bits]
+def professor_bits(chromosome):
+    return chromosome[courses_bits: courses_bits + professors_bits]
 
-def group_bits(c):
-    return c[courses_bits + professors_bits:courses_bits + professors_bits + groups_bits]
+def group_bits(chromosome):
+    return chromosome[courses_bits + professors_bits:courses_bits + professors_bits + groups_bits]
 
-def slot_bits(c):
-    return c[total_bits - lts_bits - slots_bits: total_bits - lts_bits]
+def slot_bits(chromosome):
+    return chromosome[total_bits - lts_bits - slots_bits: total_bits - lts_bits]
 
-def lt_bits(c):
-    return c[total_bits - lts_bits:total_bits]
+def lt_bits(chromosome):
+    return chromosome[total_bits - lts_bits:total_bits]
 
 
 def slot_clash(a, b):
@@ -82,7 +85,7 @@ def scores(c):
     return score
 
 
-def init(n):
+def init_population(n):
     global cpg, lts, slots
     chromosomes = []
     for _n in range(n):
@@ -92,55 +95,76 @@ def init(n):
         chromosomes.append(chromosome)
     return chromosomes
 
-def mutate(c):
-    old_c = c[:]
+# Modified Combination of Row_reselect, Column_reselect
+def mutate(chromosome):
+    old_chromosome = chromosome[:]
     #print("Before mutation: ", end="")
-    #printChromosome(c)
-    a = random.randint(0, len(c) - 1)
-    b = random.randint(0, len(c) - 1)
-    #print(c[a])
-    temp = deepcopy(c[a])
-    c[a] = course_bits(c[a]) + professor_bits(c[a]) + group_bits(c[a]) + slot_bits(c[b]) + lt_bits(c[b])
-    c[b] = course_bits(c[b]) + professor_bits(c[b]) + group_bits(c[b]) + slot_bits(temp) + lt_bits(temp)
+    #printChromosome(chromosome)
+
+    rand_slot = random.choice(slots)
+    rand_lt = random.choice(lts)
+
+    a = random.randint(0, len(chromosome) - 1)
+    
+    chromosome[a] = course_bits(chromosome[a]) + professor_bits(chromosome[a]) + group_bits(chromosome[a]) + rand_slot + rand_lt
 
     #print("After mutation: ", end="")
-    #printChromosome(c)
+    #printChromosome(chromosome)
 
-def crossover(c):
-    a = random.randint(0, len(c) - 1)
-    b = random.randint(0, len(c) - 1)
-    pass
+def crossover(population):
+    a = random.randint(0, len(population) - 1)
+    b = random.randint(0, len(population) - 1)
+    cut = random.randint(0, len(population[0])) # assume all chromosome are of same len
+    population.append(population[a][:cut] + population[b][cut:])
+    
 
-def printChromosome(c):
-    print("Course:", course_bits(c),
-          "Prof:", professor_bits(c),
-          "Group:", group_bits(c),
-          "Slot:", slot_bits(c),
-          "LT:", lt_bits(c))
+def selection(population, n):
+    population = sorted(population, key = scores, reverse=True)
+    population = population[:n]
+
+def printChromosome(chromosome):
+    print("Course:", course_bits(chromosome),
+          "Prof:", professor_bits(chromosome),
+          "Group:", group_bits(chromosome),
+          "Slot:", slot_bits(chromosome),
+          "LT:", lt_bits(chromosome))
+
+def genetic_algorithm():
+    generation = 0
+    population = init_population(3)
+
+    print("Original population:")
+    print(population)
+    
+    while True:
+        
+        # if termination criteria are satisfied, stop.
+        if scores(max(population, key = scores)) == max_score or generation == 200:
+            print("Generations:", generation)
+            print("Best Chromosome score", scores(max(population, key = scores)))
+            print()
+            for lec in max(population, key = scores):
+                printChromosome(lec)
+            break
+        
+        # Otherwise continue
+        else:
+            for _c in range(len(population)):
+                crossover(population)
+                population = sorted(population, key = scores, reverse=True)
+                population = population[:5]
+
+                mutate(population[_c])
+                population[_c] = sorted(population[_c], key = scores, reverse=True)
+                population[_c] = population[_c][:len(cpg)]
+
+
+        generation = generation + 1
+        print("Gen:", generation)
+
+    # print("Population", population)
 
 def main():
     random.seed()
-    c = init(3)
-    print("Chromosome", c)
-
-    gen = 0
-    oldscore = scores(max(c, key = scores))
-    print("Best Original score:", oldscore)
-    while (oldscore != 200):
-        for _c in range(len(c)):
-            mutate(c[_c])
-            mutate(c[_c])
-            gen = gen + 1
-            if scores(c[_c]) > oldscore:
-                oldscore = scores(c[_c])
-
-            if gen == 1000:
-                oldscore = 200
-                break
-    print()
-    print("Generations:", gen)
-    best_chromosome = max(c, key = scores)
-    print("Best Chromosome:", best_chromosome, "Scores:", scores(best_chromosome))
-
-    print("All Chromosomes:", c)
+    genetic_algorithm()
 main()
