@@ -1,6 +1,20 @@
 import random
-from Data import *
+from Classes import *
 from math import ceil, log2
+
+Group.groups = [Group("a", 10), Group("b", 20), Group("c", 30), Group("d", 10), Group("e", 40)]
+
+Professor.professors = [Professor("mutaqi"), Professor("khalid"), Professor("zafar"),
+                        Professor("basit"), Professor("khalid_zaheer")]
+
+Course.courses = [Course("hu100"), Course("mt111"), Course("hu160"),
+                  Course("ch110"), Course("cs101"), Course("cs152")]
+
+Room.rooms = [Room("lt1", 20), Room("lt2", 40)]
+
+Slot.slots = [Slot("08:30", "10:00", "Mon"), Slot("10:15", "11:45", "Mon"),
+              Slot("12:00", "13:30", "Mon")]
+
 
 
 # TODO
@@ -29,14 +43,6 @@ cpg = []
 lts = []
 slots = []
 
-
-g_bin = None
-p_bin = None
-c_bin = None
-r_bin = None
-t_bin = None
-
-
 def bits_needed(x):
     return int(ceil(log2(len(x))))
 
@@ -49,69 +55,71 @@ def binary_converter(x):
     return bit_repr
 
 
-def join_elements(_list):
-    for i in range(len(_list)):
-        _list[i] = "".join(_list[i])
+def join_cpg_pair(cpg):
+    res = []
+    for i in range(0, len(cpg), 3):
+        res.append(cpg[i] + cpg[i + 1] + cpg[i + 2])
+    return res
 
 
 def convert_input_to_bin():
     global cpg, lts, slots
-    global g_bin, p_bin, c_bin, r_bin, t_bin
 
-    g_bin = binary_converter(sample_data.g)
-    p_bin = binary_converter(sample_data.p)
-    c_bin = binary_converter(sample_data.c)
-    
-    r_bin = binary_converter(sample_data.r)
-    t_bin = binary_converter(sample_data.t)
+    cpg = [Course.find("hu100"), Professor.find("mutaqi"), Group.find("a"),
+           Course.find("mt111"), Professor.find("khalid"), Group.find("a"),
+           Course.find("hu160"), Professor.find("mutaqi"), Group.find("b"),
+           Course.find("ch110"), Professor.find("zafar"), Group.find("c"),
+           Course.find("cs101"), Professor.find("basit"), Group.find("e"),
+           Course.find("cs152"), Professor.find("basit"), Group.find("e")]
 
-    cpg = [
-        [c_bin["hu100"], p_bin["mutaqi"], g_bin["a"]],
-        [c_bin["mt111"], p_bin["khalid"], g_bin["a"]],
-        [c_bin["hu160"], p_bin["mutaqi"], g_bin["b"]],
-        [c_bin["ch110"], p_bin["zafar"],  g_bin["c"]],
-        [c_bin["cs101"], p_bin["basit"], g_bin["e"]],
-        [c_bin["cs152"], p_bin["basit"], g_bin["e"]],
-    ]
-    join_elements(cpg)
+    for _c in range(len(cpg)):
+        if _c % 3:  # Course
+            cpg[_c] = (bin(cpg[_c])[2:]).rjust(bits_needed(Course.courses), '0')
+        elif _c % 3 == 1:  # Professor
+            cpg[_c] = (bin(cpg[_c])[2:]).rjust(bits_needed(Professor.professors), '0')
+        else:  # Group
+            cpg[_c] = (bin(cpg[_c])[2:]).rjust(bits_needed(Group.groups), '0')
 
-    lts = list(r_bin.values())
-    slots = list(t_bin.values())
+    cpg = join_cpg_pair(cpg)
+    for r in range(len(Room.rooms)):
+        lts.append((bin(r)[2:]).rjust(bits_needed(Room.rooms), '0'))
+
+    for t in range(len(Slot.slots)):
+        slots.append((bin(t)[2:]).rjust(bits_needed(Slot.slots), '0'))
 
     print(cpg)
     
 
-# All these *_bits() function assume that the *_bits variables are correctly set
 def course_bits(chromosome):
     i = 0
 
-    return chromosome[i:i + bits_needed(sample_data.c)]
+    return chromosome[i:i + bits_needed(Course.courses)]
 
 
 def professor_bits(chromosome):
-    i = bits_needed(sample_data.c)
+    i = bits_needed(Course.courses)
 
-    return chromosome[i: i + bits_needed(sample_data.p)]
+    return chromosome[i: i + bits_needed(Professor.professors)]
 
 
 def group_bits(chromosome):
-    i = bits_needed(sample_data.c) + bits_needed(sample_data.p)
+    i = bits_needed(Course.courses) + bits_needed(Professor.professors)
 
-    return chromosome[i:i + bits_needed(sample_data.g)]
+    return chromosome[i:i + bits_needed(Group.groups)]
 
 
 def slot_bits(chromosome):
-    i = bits_needed(sample_data.c) + bits_needed(sample_data.p) + \
-        bits_needed(sample_data.g)
+    i = bits_needed(Course.courses) + bits_needed(Professor.professors) + \
+        bits_needed(Group.groups)
 
-    return chromosome[i:i + bits_needed(sample_data.t)]
+    return chromosome[i:i + bits_needed(Slot.slots)]
 
 
 def lt_bits(chromosome):
-    i = bits_needed(sample_data.c) + bits_needed(sample_data.p) +\
-        bits_needed(sample_data.g) + bits_needed(sample_data.t)
+    i = bits_needed(Course.courses) + bits_needed(Professor.professors) +\
+        bits_needed(Group.groups) + bits_needed(Slot.slots)
 
-    return chromosome[i: i + bits_needed(sample_data.r)]
+    return chromosome[i: i + bits_needed(Room.rooms)]
 
 
 def slot_clash(a, b):
@@ -151,25 +159,13 @@ def classroom_size(chromosome):
     points = 0
     problems = 0
     if type(chromosome) == str:
-        _g_key = list(sample_data.g.keys())[int(group_bits(chromosome), 2)]
-        _g_size = sample_data.g[_g_key].size
-
-        _r_key = list(sample_data.r.keys())[int(lt_bits(chromosome), 2)]
-        _r_size = sample_data.r[_r_key].size
-
-        if _g_size > _r_size:
+        if Group.groups[int(group_bits(chromosome), 2)].size > Room.rooms[int(lt_bits(chromosome), 2)].size:
             problems = problems + 1
         else:
             points = points + 100
     else:
         for _c in chromosome:
-            _g_key = list(sample_data.g.keys())[int(group_bits(_c), 2)]
-            _g_size = sample_data.g[_g_key].size
-
-            _r_key = list(sample_data.r.keys())[int(lt_bits(_c), 2)]
-            _r_size = sample_data.r[_r_key].size
-
-            if _g_size > _r_size:
+            if Group.groups[int(group_bits(_c), 2)].size > Room.rooms[int(lt_bits(_c), 2)].size:
                 problems = problems + 1
             else:
                 points = points + 100
@@ -226,11 +222,11 @@ def selection(population, n):
 
 
 def print_chromosome(chromosome):
-    print("Course:", list(sample_data.c.keys())[list(c_bin.values()).index(course_bits(chromosome))],
-          "Prof:", list(sample_data.p.keys())[list(p_bin.values()).index(professor_bits(chromosome))],
-          "Group:", list(sample_data.g.keys())[list(g_bin.values()).index(group_bits(chromosome))],
-          "Slot:", list(sample_data.t.keys())[list(t_bin.values()).index(slot_bits(chromosome))],
-          "LT:", list(sample_data.r.keys())[list(r_bin.values()).index(lt_bits(chromosome))])
+    print(Course.courses[int(course_bits(chromosome), 2)], " | ",
+          Professor.professors[int(professor_bits(chromosome), 2)], " | ",
+          Group.groups[int(group_bits(chromosome), 2)], " | ",
+          Slot.slots[int(slot_bits(chromosome), 2)], " | ",
+          Room.rooms[int(lt_bits(chromosome), 2)])
 
 
 def genetic_algorithm():
