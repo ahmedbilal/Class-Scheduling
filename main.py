@@ -6,9 +6,10 @@ from math import ceil, log2
 # TODO
 # 0.  Running Simplified Class Scheduling - Done
 # 0.5 Problem Instance to Binary String - Done
-# 1.  Multiple classes
-# 2.  Class Size
-# 3.  Multiple days
+# 1.  Multiple days - Done
+# 2.  Class Size - Done
+# 2.5 One group can attend only one class at a time
+# 3.  Multiple classes
 # 4.  Duration
 # 5.  Lab
 
@@ -17,7 +18,7 @@ from math import ceil, log2
 # slots = ["00", "01"] # time slots
 
 
-max_score = 200
+max_score = 300
 
 
 # ######### Chromosome ##############
@@ -28,14 +29,6 @@ cpg = []
 lts = []
 slots = []
 
-
-courses_bits = 2
-professors_bits = 2
-groups_bits = 2
-lts_bits = 2
-slots_bits = 2
-
-total_bits = 0
 
 g_bin = None
 p_bin = None
@@ -62,7 +55,7 @@ def join_elements(_list):
 
 
 def convert_input_to_bin():
-    global cpg, lts, slots, courses_bits, professors_bits, groups_bits, lts_bits, slots_bits, total_bits
+    global cpg, lts, slots
     global g_bin, p_bin, c_bin, r_bin, t_bin
 
     g_bin = binary_converter(sample_data.g)
@@ -77,43 +70,48 @@ def convert_input_to_bin():
         [c_bin["mt111"], p_bin["khalid"], g_bin["a"]],
         [c_bin["hu160"], p_bin["mutaqi"], g_bin["b"]],
         [c_bin["ch110"], p_bin["zafar"],  g_bin["c"]],
-        [c_bin["cs101"], p_bin["javaid"], g_bin["e"]]
-
+        [c_bin["cs101"], p_bin["basit"], g_bin["e"]],
+        [c_bin["cs152"], p_bin["basit"], g_bin["e"]],
     ]
     join_elements(cpg)
 
     lts = list(r_bin.values())
     slots = list(t_bin.values())
 
-    courses_bits = bits_needed(sample_data.c)
-    professors_bits = bits_needed(sample_data.p)
-    groups_bits = bits_needed(sample_data.g)
-    lts_bits = bits_needed(sample_data.r)
-    slots_bits = bits_needed(sample_data.t)
-
-    total_bits = courses_bits + professors_bits + groups_bits + lts_bits + slots_bits
     print(cpg)
     
 
 # All these *_bits() function assume that the *_bits variables are correctly set
 def course_bits(chromosome):
-    return chromosome[0:courses_bits]
+    i = 0
+
+    return chromosome[i:i + bits_needed(sample_data.c)]
 
 
 def professor_bits(chromosome):
-    return chromosome[courses_bits: courses_bits + professors_bits]
+    i = bits_needed(sample_data.c)
+
+    return chromosome[i: i + bits_needed(sample_data.p)]
 
 
 def group_bits(chromosome):
-    return chromosome[courses_bits + professors_bits:courses_bits + professors_bits + groups_bits]
+    i = bits_needed(sample_data.c) + bits_needed(sample_data.p)
+
+    return chromosome[i:i + bits_needed(sample_data.g)]
 
 
 def slot_bits(chromosome):
-    return chromosome[total_bits - lts_bits - slots_bits: total_bits - lts_bits]
+    i = bits_needed(sample_data.c) + bits_needed(sample_data.p) + \
+        bits_needed(sample_data.g)
+
+    return chromosome[i:i + bits_needed(sample_data.t)]
 
 
 def lt_bits(chromosome):
-    return chromosome[total_bits - lts_bits:total_bits]
+    i = bits_needed(sample_data.c) + bits_needed(sample_data.p) +\
+        bits_needed(sample_data.g) + bits_needed(sample_data.t)
+
+    return chromosome[i: i + bits_needed(sample_data.r)]
 
 
 def slot_clash(a, b):
@@ -147,10 +145,42 @@ def use_classroom_available_time(chromosome):
     return (len(chromosome) * 100 - len(clashes) * 100) / len(cpg)
 
 
-def scores(chromosome):
+# checks that the classroom capacity is large enough for the courses that
+# are assigned to that classroom.
+def classroom_size(chromosome):
+    points = 0
+    problems = 0
+    if type(chromosome) == str:
+        _g_key = list(sample_data.g.keys())[int(group_bits(chromosome), 2)]
+        _g_size = sample_data.g[_g_key].size
+
+        _r_key = list(sample_data.r.keys())[int(lt_bits(chromosome), 2)]
+        _r_size = sample_data.r[_r_key].size
+
+        if _g_size > _r_size:
+            problems = problems + 1
+        else:
+            points = points + 100
+    else:
+        for _c in chromosome:
+            _g_key = list(sample_data.g.keys())[int(group_bits(_c), 2)]
+            _g_size = sample_data.g[_g_key].size
+
+            _r_key = list(sample_data.r.keys())[int(lt_bits(_c), 2)]
+            _r_size = sample_data.r[_r_key].size
+
+            if _g_size > _r_size:
+                problems = problems + 1
+            else:
+                points = points + 100
+    return points / len(cpg)
+
+
+def evaluate(chromosome):
     score = 0
     score = score + use_classroom_available_time(chromosome)
     score = score + faculty_member_one_class(chromosome)
+    score = score + classroom_size(chromosome)
     return score
 
 
@@ -190,7 +220,7 @@ def crossover(population):
     
 
 def selection(population, n):
-    population.sort(key=scores, reverse=True)
+    population.sort(key=evaluate, reverse=True)
     while len(population) > n:
         population.pop()
 
@@ -214,11 +244,11 @@ def genetic_algorithm():
     while True:
         
         # if termination criteria are satisfied, stop.
-        if scores(max(population, key=scores)) == max_score or generation == 200:
+        if evaluate(max(population, key=evaluate)) == max_score or generation == 200:
             print("Generations:", generation)
-            print("Best Chromosome score", scores(max(population, key=scores)))
-            print("Best Chromosome: ", max(population, key=scores))
-            for lec in max(population, key=scores):
+            print("Best Chromosome score", evaluate(max(population, key=evaluate)))
+            print("Best Chromosome: ", max(population, key=evaluate))
+            for lec in max(population, key=evaluate):
                 print_chromosome(lec)
             break
         

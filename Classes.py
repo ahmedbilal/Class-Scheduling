@@ -19,9 +19,10 @@ class Room:
 
 
 class Slot:
-    def __init__(self, start, end):
+    def __init__(self, start, end, day):
         self.start = start
         self.end = end
+        self.day = day
 
 
 class Data:
