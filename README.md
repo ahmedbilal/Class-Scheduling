@@ -1,7 +1,5 @@
-Class Scheduling
+## Class Scheduling
 
-main.py     -   contains all the code
+**main.py**     -   contains all the code including data
 
-Classes.py  -   contain the classes
-
-Data.py     -   contain the initial data
+**Classes.py**  -   contain the classes

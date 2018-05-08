@@ -33,21 +33,22 @@ class Professor:
         return "Professor: " + self.name
 
 
-class Course:
-    courses = None
+class CourseClass:
+    classes = None
 
-    def __init__(self, code):
+    def __init__(self, code, lab=False):
         self.code = code
+        self.lab = lab
 
     @staticmethod
     def find(code):
-        for i in range(len(Course.courses)):
-            if Course.courses[i].code == code:
+        for i in range(len(CourseClass.classes)):
+            if CourseClass.classes[i].code == code:
                 return i
         return -1
 
     def __repr__(self):
-        return "Course: " + self.code
+        return "CourseClass: " + self.code
 
 
 class Room:
@@ -70,6 +71,7 @@ class Room:
 
 class Slot:
     slots = None
+    lab_slots = None
 
     def __init__(self, start, end, day):
         self.start = start
