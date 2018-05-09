@@ -8,15 +8,13 @@ Professor.professors = [Professor("mutaqi"), Professor("khalid"), Professor("zaf
                         Professor("basit"), Professor("khalid_zaheer")]
 
 CourseClass.classes = [CourseClass("hu100a"), CourseClass("hu100b"), CourseClass("mt111"),
-                       CourseClass("hu160"),
+                       CourseClass("hu160"), CourseClass("cs101 lab", is_lab=True),
                        CourseClass("ch110"), CourseClass("cs101"), CourseClass("cs152")]
 
-Room.rooms = [Room("lt1", 20), Room("lt2", 40), Room("lt3", 60), Room("lab", 100)]
+Room.rooms = [Room("lt1", 20), Room("lt2", 40), Room("lt3", 60), Room("lab", 100, is_lab=True)]
 
 Slot.slots = [Slot("08:30", "10:00", "Mon"), Slot("10:15", "11:45", "Mon"),
-              Slot("12:00", "13:30", "Mon"), Slot("08:30", "10:00", "Tue")]
-
-Slot.lab_slots = [Slot("08:30", "11:30", "Mon"), Slot("12:00", "15:00", "Mon")]
+              Slot("12:00", "13:30", "Mon"), Slot("08:30", "10:00", "Tue"), Slot("08:30", "11:30", "Mon", True)]
 
 # TODO
 # 0.  Running Simplified Class Scheduling - Done
@@ -44,7 +42,7 @@ max_score = None
 cpg = []
 lts = []
 slots = []
-bits_needed_backup_store = {} # to improve performance
+bits_needed_backup_store = {}  # to improve performance
 
 
 def bits_needed(x):
@@ -72,7 +70,8 @@ def convert_input_to_bin():
            CourseClass.find("cs152"), Professor.find("basit"), Group.find("a"),
            CourseClass.find("hu160"), Professor.find("mutaqi"), Group.find("b"),
            CourseClass.find("ch110"), Professor.find("zafar"), Group.find("e"),
-           CourseClass.find("cs101"), Professor.find("basit"), Group.find("e")
+           CourseClass.find("cs101"), Professor.find("basit"), Group.find("e"),
+           CourseClass.find("cs101 lab"), Professor.find("basit"), Group.find("e")
            ]
 
     for _c in range(len(cpg)):
@@ -91,7 +90,7 @@ def convert_input_to_bin():
         slots.append((bin(t)[2:]).rjust(bits_needed(Slot.slots), '0'))
 
     # print(cpg)
-    max_score = (len(cpg) - 1) * 3 + len(cpg) * 1
+    max_score = (len(cpg) - 1) * 3 + len(cpg) * 3
 
 
 def course_bits(chromosome):
@@ -191,9 +190,9 @@ def use_spare_classroom(chromosome):
 
 # checks that the classroom capacity is large enough for the classes that
 # are assigned to that classroom.
-def classroom_size(chromosome):
+def classroom_size(chromosomes):
     scores = 0
-    for _c in chromosome:
+    for _c in chromosomes:
         # print(group_bits(_c), "-", lt_bits(_c))
         if Group.groups[int(group_bits(_c), 2)].size > Room.rooms[int(lt_bits(_c), 2)].size:
             pass
@@ -202,14 +201,34 @@ def classroom_size(chromosome):
     return scores
 
 
-def evaluate(chromosome):
-    score = 0
-    score = score + use_spare_classroom(chromosome)
-    score = score + faculty_member_one_class(chromosome)
-    score = score + classroom_size(chromosome)
-    score = score + group_member_one_class(chromosome)
+# check that room is appropriate for particular class/lab
+def appropriate_room(chromosomes):
+    scores = 0
+    for _c in chromosomes:
+        if CourseClass.classes[int(course_bits(_c), 2)].is_lab == Room.rooms[int(lt_bits(_c), 2)].is_lab:
+            scores = scores + 1
+    return scores
 
-    return score
+
+# check that lab is allocated appropriate time slot
+def appropriate_timeslot(chromosomes):
+    scores = 0
+    for _c in chromosomes:
+        if CourseClass.classes[int(course_bits(_c), 2)].is_lab == Slot.slots[int(slot_bits(_c), 2)].is_lab_slot:
+            scores = scores + 1
+    return scores
+
+
+def evaluate(chromosomes):
+    global max_score
+    score = 0
+    score = score + use_spare_classroom(chromosomes)
+    score = score + faculty_member_one_class(chromosomes)
+    score = score + classroom_size(chromosomes)
+    score = score + group_member_one_class(chromosomes)
+    score = score + appropriate_room(chromosomes)
+    score = score + appropriate_timeslot(chromosomes)
+    return score / max_score
 
 
 def init_population(n):
@@ -272,9 +291,9 @@ def genetic_algorithm():
     while True:
         
         # if termination criteria are satisfied, stop.
-        if evaluate(max(population, key=evaluate)) == max_score or generation == 500:
+        if evaluate(max(population, key=evaluate)) == 1 or generation == 500:
             print("Generations:", generation)
-            print("Best Chromosome score", evaluate(max(population, key=evaluate)))
+            print("Best Chromosome fitness value", evaluate(max(population, key=evaluate)))
             print("Best Chromosome: ", max(population, key=evaluate))
             for lec in max(population, key=evaluate):
                 print_chromosome(lec)
