@@ -1,4 +1,4 @@
-import random
+import random, copy
 from Classes import *
 from math import ceil, log2
 
@@ -24,7 +24,7 @@ Slot.slots = [Slot("08:30", "10:00", "Mon"), Slot("10:15", "11:45", "Mon"),
 # 2.25 Check Selection Function - Done
 # 2.5 One group can attend only one class at a time - Done
 # 3.  Multiple classes - Done
-# 4.  Lab
+# 4.  Lab - Done
 
 # Below chromosome parts are just to teach basic
 
@@ -193,10 +193,7 @@ def use_spare_classroom(chromosome):
 def classroom_size(chromosomes):
     scores = 0
     for _c in chromosomes:
-        # print(group_bits(_c), "-", lt_bits(_c))
-        if Group.groups[int(group_bits(_c), 2)].size > Room.rooms[int(lt_bits(_c), 2)].size:
-            pass
-        else:
+        if Group.groups[int(group_bits(_c), 2)].size <= Room.rooms[int(lt_bits(_c), 2)].size:
             scores = scores + 1
     return scores
 
@@ -230,6 +227,12 @@ def evaluate(chromosomes):
     score = score + appropriate_timeslot(chromosomes)
     return score / max_score
 
+def cost(solution):
+    # solution would be an array inside an array
+    # it is because we use it as it is in genetic algorithms
+    # too. Because, GA require multiple solutions i.e population
+    # to work.
+    return 1 / float(evaluate(solution))
 
 def init_population(n):
     global cpg, lts, slots
@@ -279,15 +282,70 @@ def print_chromosome(chromosome):
           Slot.slots[int(slot_bits(chromosome), 2)], " | ",
           Room.rooms[int(lt_bits(chromosome), 2)])
 
+# Simple Searching Neighborhood
+# It randomly changes timeslot of a class/lab
+def ssn(solution):
+    rand_slot = random.choice(slots)
+    rand_lt = random.choice(lts)
+    
+    a = random.randint(0, len(solution) - 1)
+    
+    new_solution = copy.deepcopy(solution)
+    new_solution[a] = course_bits(solution[a]) + professor_bits(solution[a]) +\
+        group_bits(solution[a]) + rand_slot + lt_bits(solution[a])
+    return [new_solution]
+
+# Swapping Neighborhoods
+# It randomy selects two classes and swap their time slots
+def swn(solution):
+    a = random.randint(0, len(solution) - 1)
+    b = random.randint(0, len(solution) - 1)
+    new_solution = copy.deepcopy(solution)
+    temp = slot_bits(solution[a])
+    new_solution[a] = course_bits(solution[a]) + professor_bits(solution[a]) +\
+        group_bits(solution[a]) + slot_bits(solution[b]) + lt_bits(solution[a])
+
+    new_solution[b] = course_bits(solution[b]) + professor_bits(solution[b]) +\
+        group_bits(solution[b]) + temp + lt_bits(solution[b])
+    # print("Diff", solution)
+    # print("Meiw", new_solution)
+    return [new_solution]
+
+    
+def simulated_annealing():
+    convert_input_to_bin()
+    population = init_population(1) # as simulated annealing is a single-state method
+    old_cost = cost(population[0])
+    # print("Cost of original random solution: ", old_cost)
+    # print("Original population:")
+    # print(population)
+
+    for __n in range(500):
+        new_solution = swn(population[0])
+        new_cost = cost(new_solution[0])
+        if (new_cost < old_cost):
+            population = new_solution
+
+        new_solution = ssn(population[0])
+        new_cost = cost(new_solution[0])
+        if (new_cost < old_cost):
+            population = new_solution
+
+    # print(population)
+    # print("Cost of altered solution: ", cost(population[0]))
+    print("\n------------- Simulated Annealing --------------\n")
+    for lec in population[0]:
+        print_chromosome(lec)
+    print("Score: ", evaluate(population[0]))
 
 def genetic_algorithm():
     generation = 0
     convert_input_to_bin()
     population = init_population(3)
 
-    print("Original population:")
-    print(population)
-    
+    # print("Original population:")
+    # print(population)
+    print("\n------------- Genetic Algorithm --------------\n")
     while True:
         
         # if termination criteria are satisfied, stop.
@@ -317,6 +375,6 @@ def genetic_algorithm():
 def main():
     random.seed()
     genetic_algorithm()
-
+    simulated_annealing()
 
 main()
