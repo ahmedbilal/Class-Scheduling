@@ -1,7 +1,7 @@
 import random, copy
 from Classes import *
 from math import ceil, log2
-
+import math
 Group.groups = [Group("a", 10), Group("b", 20), Group("c", 30), Group("d", 10), Group("e", 40)]
 
 Professor.professors = [Professor("mutaqi"), Professor("khalid"), Professor("zafar"),
@@ -311,8 +311,17 @@ def swn(solution):
     # print("Meiw", new_solution)
     return [new_solution]
 
-    
+def acceptance_probability(old_cost, new_cost, temperature):
+    if new_cost < old_cost:
+        return 1.0
+    else:
+        return math.exp((old_cost - new_cost) / temperature)
+
 def simulated_annealing():
+    alpha = 0.9
+    T = 1.0
+    T_min = 0.00001
+    
     convert_input_to_bin()
     population = init_population(1) # as simulated annealing is a single-state method
     old_cost = cost(population[0])
@@ -322,15 +331,13 @@ def simulated_annealing():
 
     for __n in range(500):
         new_solution = swn(population[0])
-        new_cost = cost(new_solution[0])
-        if (new_cost < old_cost):
-            population = new_solution
-
         new_solution = ssn(population[0])
         new_cost = cost(new_solution[0])
-        if (new_cost < old_cost):
+        ap = acceptance_probability(old_cost, new_cost, T)
+        if ap > random.random():
             population = new_solution
-
+            old_cost = new_cost
+        T = T * alpha
     # print(population)
     # print("Cost of altered solution: ", cost(population[0]))
     print("\n------------- Simulated Annealing --------------\n")
